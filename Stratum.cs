@@ -52,7 +52,7 @@ namespace DotNetStratumMiner
             else
             {
                 Console.WriteLine("Unable to connect to server {0} on port {1}", Server, Port);
-                Environment.Exit(-1);
+                return;
             }
 
             // We are connected successfully

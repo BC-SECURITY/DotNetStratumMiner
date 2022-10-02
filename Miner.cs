@@ -20,47 +20,55 @@ namespace DotNetStratumMiner
                 threadCount = Environment.ProcessorCount;
             }
             threads = new Thread[threadCount];
+            Console.WriteLine("Starting {0} threads", threadCount);
         }
        
         public void Mine(object sender, DoWorkEventArgs e)
         {
-            Debug.WriteLine("New Miner. ID = " + Thread.CurrentThread.ManagedThreadId);
-            Console.WriteLine("Starting {0} threads for new block...", threads.Length);
-
-            Job ThisJob = (Job)e.Argument;
-            
-            // Gets the data to hash and the target from the work
-            byte[] databyte = Utilities.ReverseByteArrayByFours(Utilities.HexStringToByteArray(ThisJob.Data));
-            byte[] targetbyte = Utilities.HexStringToByteArray(ThisJob.Target);
-            
-            done = false;
-            FinalNonce = 0;
-
-            // Spin up background threads to do the hashing
-            for (int i = 0; i < threads.Length; i++)
+            try
             {
-                threads[i] = new Thread(() => doScrypt(databyte, targetbyte, (uint)i, (uint)threads.Length));
-                threads[i].IsBackground = false;
-                threads[i].Priority = ThreadPriority.Normal;//.Lowest; // For debugging
-                threads[i].Start();
-            }
+                Console.WriteLine("New Miner. ID = " + Thread.CurrentThread.ManagedThreadId);
+                Console.WriteLine("Starting {0} threads for new block...", threads.Length);
 
-            // Block until all the threads finish
-            for (int i = 0; i < threads.Length; i++)
-            {
-                threads[i].Join();
-            }
-           
-            // Fill in the answer if work done
-            if (FinalNonce != 0)
-            {
-                ThisJob.Answer = FinalNonce;
-                e.Result = ThisJob;
-            }
-            else
-                e.Result = null;
+                Job ThisJob = (Job)e.Argument;
 
-            Debug.WriteLine("Miner ID {0} finished", Thread.CurrentThread.ManagedThreadId);
+                // Gets the data to hash and the target from the work
+                byte[] databyte = Utilities.ReverseByteArrayByFours(Utilities.HexStringToByteArray(ThisJob.Data));
+                byte[] targetbyte = Utilities.HexStringToByteArray(ThisJob.Target);
+
+                done = false;
+                FinalNonce = 0;
+
+                // Spin up background threads to do the hashing
+                for (int i = 0; i < threads.Length; i++)
+                {
+                    threads[i] = new Thread(() => doScrypt(databyte, targetbyte, (uint)i, (uint)threads.Length));
+                    threads[i].IsBackground = false;
+                    threads[i].Priority = ThreadPriority.Highest;//.Lowest; // For debugging
+                    threads[i].Start();
+                }
+
+                // Block until all the threads finish
+                for (int i = 0; i < threads.Length; i++)
+                {
+                    threads[i].Join();
+                }
+
+                // Fill in the answer if work done
+                if (FinalNonce != 0)
+                {
+                    ThisJob.Answer = FinalNonce;
+                    e.Result = ThisJob;
+                }
+                else
+                    e.Result = null;
+
+                Console.WriteLine("Miner ID {0} finished", Thread.CurrentThread.ManagedThreadId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Miner ID {0} failed: {1}", Thread.CurrentThread.ManagedThreadId, ex.Message);
+            }
         }
 
         // Reference: https://github.com/replicon/Replicon.Cryptography.SCrypt
